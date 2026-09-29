@@ -1,32 +1,26 @@
-"""
-app/models/table.py
---------------------
-Bảng: tables
-"""
+"""SQLAlchemy model for the ``tables`` table."""
 
 import enum
-
-from sqlalchemy import Enum, ForeignKey, Integer, String
+from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base
 
 
 class TableStatus(str, enum.Enum):
-    AVAILABLE = "AVAILABLE"
+    EMPTY = "EMPTY"
     OCCUPIED = "OCCUPIED"
     RESERVED = "RESERVED"
 
 
-class Table(Base, TimestampMixin):
-    """Bảng tables: bàn ăn thực tế, mỗi bàn gắn với 1 node duy nhất trên sơ đồ."""
-
+class Table(Base):
     __tablename__ = "tables"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    table_number: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)  # VD: A01
-    capacity: Mapped[int] = mapped_column(Integer, default=4)
-    status: Mapped[TableStatus] = mapped_column(Enum(TableStatus), default=TableStatus.AVAILABLE)
+    table_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    table_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    qr_id: Mapped[str] = mapped_column(
+        ForeignKey("nodes.qr_id"), nullable=False, index=True
+    )
+    status: Mapped[str] = mapped_column(String(20), default=TableStatus.EMPTY, nullable=True)
 
-    node_id: Mapped[int] = mapped_column(ForeignKey("nodes.id"), unique=True, nullable=False)
     node: Mapped["Node"] = relationship(back_populates="table")  # noqa: F821

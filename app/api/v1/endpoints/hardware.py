@@ -6,18 +6,16 @@ Toàn bộ endpoint trong file này xác thực bằng Header `X-Device-Key`
 (KHÔNG dùng JWT vì đây là máy-với-máy, không phải người dùng đăng nhập).
 """
 
-from datetime import datetime, timezone
-
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.exceptions import AppException
-from app.core.security import verify_device_key
+from app.core.security import require_roles, verify_device_key
 from app.models.dish import Dish
-from app.models.node import Node
-from app.models.robot import RobotState, RobotStatus
+from app.models.order import Order, OrderDetail
+from app.models.robot import RobotStatus
 from app.schemas.common import SuccessResponse
 from app.schemas.hardware import (
     AIDetectDishRequest,
@@ -29,6 +27,7 @@ from app.schemas.hardware import (
 from app.services.routing_service import RoutingService
 
 router = APIRouter(prefix="/robot", tags=["Hardware - ESP32 & Raspberry Pi"])
+hardware_router = APIRouter(prefix="/hardware", tags=["Hardware - ESP32 & Raspberry Pi"])
 
 
 # ============================================================================
@@ -40,9 +39,9 @@ router = APIRouter(prefix="/robot", tags=["Hardware - ESP32 & Raspberry Pi"])
     summary="ESP32 gửi mã QR vừa quét được để nhận chỉ dẫn bước đi tiếp theo",
 )
 async def get_robot_routing(
-    robot_code: str = Query(..., description="Mã robot, VD: ROBOT_01"),
-    current_node_code: str = Query(..., description="Mã QR robot vừa quét được tại node hiện tại"),
-    target_table_number: str | None = Query(
+    robot_id: str = Query(..., description="Mã robot, VD: ROBOT_01"),
+    current_qr_id: str = Query(..., description="Mã QR robot vừa quét được tại node hiện tại"),
+    target_table_number: int | None = Query(
         default=None, description="Bàn đích (bắt buộc khi direction=OUTBOUND)"
     ),
     direction: str = Query(default="OUTBOUND", description="OUTBOUND (đi giao món) | INBOUND (quay về bếp)"),
@@ -60,8 +59,8 @@ async def get_robot_routing(
     """
     service = RoutingService(db)
     result = await service.resolve_routing(
-        robot_code=robot_code,
-        current_node_code=current_node_code,
+        robot_id=robot_id,
+        current_qr_id=current_qr_id,
         target_table_number=target_table_number,
         direction=direction,
     )
@@ -81,40 +80,40 @@ async def update_robot_status(
     db: AsyncSession = Depends(get_db),
     _device: str = Depends(verify_device_key),
 ):
-    result = await db.execute(select(RobotStatus).where(RobotStatus.robot_code == payload.robot_code))
+    result = await db.execute(select(RobotStatus).where(RobotStatus.id == payload.id))
     robot = result.scalar_one_or_none()
 
-    current_node_id = None
-    if payload.current_node_code:
-        node_result = await db.execute(select(Node).where(Node.node_code == payload.current_node_code))
-        node = node_result.scalar_one_or_none()
-        current_node_id = node.id if node else None
-
     if robot is None:
-        # Robot gọi lần đầu tiên -> tự đăng ký bản ghi trạng thái mới
         robot = RobotStatus(
-            robot_code=payload.robot_code,
-            battery_level=payload.battery_level,
-            state=RobotState(payload.state),
-            current_node_id=current_node_id,
-            last_heartbeat=datetime.now(timezone.utc),
+            id=payload.id,
+            robot_state=payload.robot_state,
+            current_qr_id=payload.current_qr_id,
+            obstacle_detected=payload.obstacle_detected,
         )
         db.add(robot)
     else:
-        robot.battery_level = payload.battery_level
-        robot.state = RobotState(payload.state)
-        robot.current_node_id = current_node_id
-        robot.last_heartbeat = datetime.now(timezone.utc)
+        robot.robot_state = payload.robot_state
+        robot.current_qr_id = payload.current_qr_id
+        robot.obstacle_detected = payload.obstacle_detected
 
     await db.commit()
     await db.refresh(robot)
     return SuccessResponse(data=robot, message="Cập nhật trạng thái robot thành công")
 
 
+@router.get("/status", response_model=SuccessResponse[list[RobotStatusResponse]])
+async def list_robot_status(
+    db: AsyncSession = Depends(get_db),
+    _staff=Depends(require_roles("ADMIN", "STAFF")),
+):
+    robots = (await db.execute(select(RobotStatus).order_by(RobotStatus.id))).scalars().all()
+    return SuccessResponse(data=[RobotStatusResponse.model_validate(robot) for robot in robots])
+
+
 # ============================================================================
 # 3. AI DETECT DISHES: Raspberry Pi xác nhận món ăn đúng với đơn hàng trước khi robot rời bếp
 # ============================================================================
-@router.post(
+@hardware_router.put(
     "/ai/detect-dishes",
     response_model=SuccessResponse[dict],
     summary="Raspberry Pi gửi kết quả AI nhận diện món ăn trên khay để đối chiếu với đơn hàng",
@@ -124,21 +123,31 @@ async def ai_detect_dishes(
     db: AsyncSession = Depends(get_db),
     _device: str = Depends(verify_device_key),
 ):
-    # Lấy toàn bộ nhãn AI hợp lệ đang có trong hệ thống để đối chiếu
-    result = await db.execute(select(Dish.ai_label).where(Dish.ai_label.isnot(None)))
-    valid_labels = {row[0] for row in result.all()}
-
-    unmatched = [label for label in payload.detected_labels if label not in valid_labels]
-    is_matched = len(unmatched) == 0
+    order = (await db.execute(select(Order).where(Order.order_id == payload.order_id))).scalar_one_or_none()
+    if order is None:
+        raise AppException(404, "Không tìm thấy đơn hàng")
+    expected = (await db.execute(
+        select(Dish.ai_label_id).join(OrderDetail, OrderDetail.dish_id == Dish.dish_id).where(
+            OrderDetail.order_id == payload.order_id, Dish.ai_label_id.isnot(None)
+        )
+    )).scalars().all()
+    expected_labels = set(expected)
+    detected_labels = set(payload.detected_labels)
+    unmatched = sorted(expected_labels - detected_labels)
+    unexpected = sorted(detected_labels - expected_labels)
+    is_matched = not unmatched and not unexpected
 
     if not is_matched:
         # Không raise lỗi cứng: vẫn trả về kết quả để robot/nhân viên tự quyết định xử lý tiếp
         return SuccessResponse(
-            data={"is_matched": False, "unmatched_labels": unmatched},
+            data={"is_matched": False, "unmatched_labels": unmatched, "unexpected_labels": unexpected},
             message="Phát hiện món ăn KHÔNG khớp với đơn hàng, vui lòng kiểm tra lại khay đồ ăn",
         )
 
-    return SuccessResponse(data={"is_matched": True, "unmatched_labels": []}, message="Món ăn khớp với đơn hàng")
+    return SuccessResponse(
+        data={"is_matched": True, "unmatched_labels": [], "unexpected_labels": []},
+        message="Món ăn khớp với đơn hàng",
+    )
 
 
 # ============================================================================
@@ -161,8 +170,8 @@ async def ai_detect_human(
     return SuccessResponse(
         data={
             "should_stop": should_stop,
-            "robot_code": payload.robot_code,
-            "node_code": payload.node_code,
+            "robot_id": payload.robot_id,
+            "qr_id": payload.qr_id,
         },
         message="Đã xử lý cảnh báo vật cản/người đi đường",
     )

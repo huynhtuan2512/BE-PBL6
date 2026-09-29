@@ -1,62 +1,92 @@
-"""
-app/schemas/admin.py
----------------------
-Schemas cho các API quản trị: Users, Nodes, Routings, Swap-tables.
-"""
+"""Schemas for administration endpoints using the SQL dump column names."""
+
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
-# ---- Node ----
 class NodeCreate(BaseModel):
-    node_code: str
+    qr_id: str
+    node_name: str
     node_type: str
-    pos_x: float = 0.0
-    pos_y: float = 0.0
-    description: str | None = None
+    pos_x: int = 0
+    pos_y: int = 0
 
 
 class NodeResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: int
-    node_code: str
+
+    qr_id: str
+    node_name: str
     node_type: str
-    pos_x: float
-    pos_y: float
+    pos_x: int
+    pos_y: int
+    created_at: datetime | None = None
 
 
-# ---- Routing (khai báo cạnh / đường đi tiền tính toán) ----
+class NodeUpdate(BaseModel):
+    node_name: str | None = None
+    node_type: str | None = None
+    pos_x: int | None = None
+    pos_y: int | None = None
+
+
 class RoutingCreate(BaseModel):
-    from_node_id: int
-    to_node_id: int
-    path_steps: list[dict]
-    distance: float = 0
+    id: str | None = None
+    qr_id: str
+    target_table_id: str | None = None
+    action: str
+    description: str | None = None
 
 
 class RoutingResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: int
-    from_node_id: int
-    to_node_id: int
-    distance: float
+
+    id: str
+    qr_id: str
+    target_table_id: str | None = None
+    action: str
+    description: str | None = None
+
+
+class RoutingUpdate(RoutingCreate):
+    pass
+
+
+class SwapRoutingTablesRequest(BaseModel):
+    table_a_id: str
+    table_b_id: str
+
+
+class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    user_id: str
+    username: str
+    full_name: str
+    phone: str | None = None
+    role_id: str
     is_active: bool
+    role_name: str | None = None
+    created_at: datetime | None = None
 
 
-# ---- Swap tables (hoán đổi bàn khi khách đổi chỗ ngồi) ----
 class SwapTableRequest(BaseModel):
-    order_id: int = Field(..., description="Đơn hàng đang cần chuyển sang bàn mới")
-    new_table_id: int = Field(..., description="ID bàn mới khách chuyển tới")
+    order_id: str = Field(..., description="Đơn hàng đang cần chuyển sang bàn mới")
+    new_table_id: str = Field(..., description="ID bàn mới khách chuyển tới")
 
 
-# ---- User management ----
 class UserCreate(BaseModel):
+    user_id: str | None = None
     username: str
     password: str = Field(..., min_length=6)
     full_name: str
-    role_id: int
+    phone: str | None = None
+    role_id: str
 
 
 class UserUpdate(BaseModel):
     full_name: str | None = None
+    phone: str | None = None
     is_active: bool | None = None
-    role_id: int | None = None
+    role_id: str | None = None

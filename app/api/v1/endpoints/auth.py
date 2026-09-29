@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.exceptions import AppException
-from app.core.security import create_access_token, get_current_user, verify_password
+from app.core.security import create_access_token, get_current_user, require_roles, verify_password
 from app.models.user import User
 from app.schemas.auth import UserResponse
 from app.schemas.common import SuccessResponse, Token
@@ -40,10 +40,15 @@ async def login(
     # Cần load role để lấy tên role đưa vào token claim
     await db.refresh(user, attribute_names=["role"])
 
-    access_token = create_access_token(subject=user.id, role=user.role.name)
-    return Token(access_token=access_token, role=user.role.name)
+    access_token = create_access_token(subject=user.user_id, role=user.role.role_name)
+    return Token(access_token=access_token, role=user.role.role_name)
 
 
-@router.get("/me", response_model=SuccessResponse[UserResponse], summary="Lấy thông tin tài khoản đang đăng nhập")
+@router.get(
+    "/me",
+    response_model=SuccessResponse[UserResponse],
+    dependencies=[Depends(require_roles("ADMIN", "STAFF"))],
+    summary="Lấy thông tin tài khoản đang đăng nhập",
+)
 async def get_me(current_user: User = Depends(get_current_user)):
     return SuccessResponse(data=UserResponse.model_validate(current_user))
