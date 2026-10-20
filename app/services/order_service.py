@@ -1,5 +1,6 @@
 """Business logic for creating orders against the SQL dump schema."""
 
+from decimal import Decimal
 from uuid import uuid4
 
 from sqlalchemy import select
@@ -27,6 +28,8 @@ class OrderService:
         ).scalar_one_or_none()
         if table is None:
             raise AppException(status_code=404, message="Không tìm thấy bàn")
+        if table.status in (TableStatus.RESERVED, TableStatus.CLEANING):
+            raise AppException(409, "Bàn đang được giữ chỗ hoặc dọn dẹp")
 
         order = Order(
             order_id=payload.order_id or _new_id("ORD"),
@@ -38,7 +41,7 @@ class OrderService:
         self.db.add(order)
         await self.db.flush()
 
-        total = 0.0
+        total = Decimal("0")
         for item in payload.items:
             dish = (
                 await self.db.execute(select(Dish).where(Dish.dish_id == item.dish_id))
@@ -49,13 +52,15 @@ class OrderService:
                     message=f"Món ăn id={item.dish_id} không tồn tại hoặc đã hết",
                 )
 
-            total += float(dish.price) * item.quantity
+            total += dish.price * item.quantity
             self.db.add(
                 OrderDetail(
                     detail_id=_new_id("DTL"),
                     order_id=order.order_id,
                     dish_id=dish.dish_id,
                     quantity=item.quantity,
+                    price_at_time=dish.price,
+                    notes=item.notes,
                     served_status=False,
                 )
             )

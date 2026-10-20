@@ -6,9 +6,8 @@ và để tránh lỗi "relationship chưa được định nghĩa" khi các mod
 """
 
 from app.models.user import Role, User
-from app.models.node import Node
-from app.models.routing import Routing
+from app.models.category import Category
+from app.models.billing import AuditLog, Invoice
 from app.models.table import Table, TableStatus
 from app.models.dish import Dish
 from app.models.order import Order, OrderDetail, OrderStatus
-from app.models.robot import RobotStatus, RobotTravelLog, RobotState

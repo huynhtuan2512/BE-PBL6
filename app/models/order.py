@@ -2,6 +2,7 @@
 
 import enum
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -11,7 +12,7 @@ from app.db.base import Base
 
 class OrderStatus(str, enum.Enum):
     PENDING = "PENDING"
-    PREPARING = "PREPARING"
+    PROCESSING = "PROCESSING"
     DELIVERING = "DELIVERING"
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
@@ -27,8 +28,8 @@ class Order(Base):
     created_by_user_id: Mapped[str | None] = mapped_column(
         ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True, index=True
     )
-    total_amount: Mapped[float] = mapped_column(Numeric(10, 2), default=0, nullable=True)
-    order_status: Mapped[str] = mapped_column(
+    total_amount: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), default=0, nullable=True)
+    order_status: Mapped[str | None] = mapped_column(
         String(30), default=OrderStatus.PENDING, nullable=True, index=True
     )
     created_at: Mapped[datetime] = mapped_column(
@@ -52,8 +53,10 @@ class OrderDetail(Base):
     dish_id: Mapped[str] = mapped_column(
         ForeignKey("dishes.dish_id"), nullable=False, index=True
     )
-    quantity: Mapped[int] = mapped_column(Integer, default=1, nullable=True)
-    served_status: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
+    quantity: Mapped[int | None] = mapped_column(Integer, default=1, nullable=True)
+    price_at_time: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    notes: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    served_status: Mapped[bool | None] = mapped_column(Boolean, default=False, nullable=True)
 
     order: Mapped["Order"] = relationship(back_populates="order_details")
     dish: Mapped["Dish"] = relationship(back_populates="order_details")  # noqa: F821

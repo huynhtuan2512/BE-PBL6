@@ -20,7 +20,6 @@ class Node(Base):
         DateTime, server_default=func.now(), nullable=True
     )
 
-    table: Mapped["Table | None"] = relationship(back_populates="node", uselist=False)
     routings: Mapped[list["Routing"]] = relationship(
         back_populates="node",
         foreign_keys="Routing.qr_id",
