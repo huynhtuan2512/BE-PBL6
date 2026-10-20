@@ -5,10 +5,9 @@ Import toàn bộ model tại đây để Alembic autogenerate quét được h�
 và để tránh lỗi "relationship chưa được định nghĩa" khi các model tham chiếu chéo nhau.
 """
 
-from app.models.user import Role, User             # noqa: F401
-from app.models.node import Node, NodeType          # noqa: F401
-from app.models.routing import Routing              # noqa: F401
-from app.models.table import Table, TableStatus     # noqa: F401
-from app.models.dish import Dish                    # noqa: F401
-from app.models.order import Order, OrderDetail, OrderStatus  # noqa: F401
-from app.models.robot import RobotStatus, RobotTravelLog, RobotState, TravelLogStatus  # noqa: F401
+from app.models.user import Role, User
+from app.models.category import Category
+from app.models.billing import AuditLog, Invoice
+from app.models.table import Table, TableStatus
+from app.models.dish import Dish
+from app.models.order import Order, OrderDetail, OrderStatus

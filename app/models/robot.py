@@ -1,16 +1,12 @@
-"""
-app/models/robot.py
---------------------
-Bảng: robot_status, robot_travel_logs
-"""
+"""SQLAlchemy models for robot status and travel logs."""
 
 import enum
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, Float, ForeignKey, Integer, JSON, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base
 
 
 class RobotState(str, enum.Enum):
@@ -22,51 +18,42 @@ class RobotState(str, enum.Enum):
     ERROR = "ERROR"
 
 
-class RobotStatus(Base, TimestampMixin):
-    """
-    Bảng robot_status: trạng thái realtime của từng robot (đồng bộ 2 chiều với ThingsBoard).
-    """
-
+class RobotStatus(Base):
     __tablename__ = "robot_status"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    robot_code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    current_qr_id: Mapped[str | None] = mapped_column(
+        ForeignKey("nodes.qr_id"), nullable=True, index=True
+    )
+    current_order_id: Mapped[str | None] = mapped_column(
+        ForeignKey("orders.order_id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    robot_state: Mapped[str] = mapped_column(
+        String(30), default=RobotState.IDLE, nullable=True
+    )
+    obstacle_detected: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=True
+    )
 
-    battery_level: Mapped[float] = mapped_column(Float, default=100.0)
-    state: Mapped[RobotState] = mapped_column(Enum(RobotState), default=RobotState.IDLE)
-
-    current_node_id: Mapped[int | None] = mapped_column(ForeignKey("nodes.id"), nullable=True)
-    current_order_id: Mapped[int | None] = mapped_column(ForeignKey("orders.id"), nullable=True)
-
-    last_heartbeat: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-
-    current_node: Mapped["Node"] = relationship()  # noqa: F821
-
-
-class TravelLogStatus(str, enum.Enum):
-    IN_PROGRESS = "IN_PROGRESS"
-    SUCCESS = "SUCCESS"
-    FAILED = "FAILED"
+    current_node: Mapped["Node | None"] = relationship()  # noqa: F821
 
 
-class RobotTravelLog(Base, TimestampMixin):
-    """
-    Bảng robot_travel_logs: lịch sử mỗi chuyến đi của robot (lượt đi giao món + lượt về).
-    Phục vụ thống kê, truy vết sự cố và tính hiệu năng vận hành.
-    """
-
+class RobotTravelLog(Base):
     __tablename__ = "robot_travel_logs"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    robot_code: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
-    order_id: Mapped[int | None] = mapped_column(ForeignKey("orders.id"), nullable=True)
+    log_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    order_id: Mapped[str] = mapped_column(
+        ForeignKey("orders.order_id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    qr_id: Mapped[str] = mapped_column(
+        ForeignKey("nodes.qr_id"), nullable=False, index=True
+    )
+    action_taken: Mapped[str] = mapped_column(String(30), nullable=False)
+    step_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=True
+    )
 
-    start_node_id: Mapped[int] = mapped_column(ForeignKey("nodes.id"), nullable=False)
-    end_node_id: Mapped[int] = mapped_column(ForeignKey("nodes.id"), nullable=False)
-
-    direction: Mapped[str] = mapped_column(String(20), nullable=False)  # OUTBOUND (đi) | INBOUND (về)
-    path_taken: Mapped[list] = mapped_column(JSON, nullable=False)  # snapshot các bước đã đi thực tế
-
-    status: Mapped[TravelLogStatus] = mapped_column(Enum(TravelLogStatus), default=TravelLogStatus.IN_PROGRESS)
-    started_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    order: Mapped["Order"] = relationship()  # noqa: F821
+    node: Mapped["Node"] = relationship()  # noqa: F821

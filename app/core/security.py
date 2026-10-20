@@ -15,8 +15,10 @@ from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from passlib.exc import UnknownHashError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.database import get_db
@@ -33,7 +35,10 @@ def hash_password(plain_password: str) -> str:
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except UnknownHashError:
+        return False
 
 
 # ============================================================================
@@ -80,7 +85,9 @@ async def get_current_user(
     if user_id is None:
         raise AppException(status_code=status.HTTP_401_UNAUTHORIZED, message="Token thiếu thông tin người dùng")
 
-    result = await db.execute(select(User).where(User.id == int(user_id)))
+    result = await db.execute(
+        select(User).options(selectinload(User.role)).where(User.user_id == str(user_id))
+    )
     user = result.scalar_one_or_none()
 
     if user is None or not user.is_active:
@@ -96,7 +103,7 @@ def require_roles(*allowed_roles: str):
     """
 
     async def role_checker(current_user=Depends(get_current_user)):
-        if current_user.role.name not in allowed_roles:
+        if current_user.role.role_name not in allowed_roles:
             raise AppException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 message=f"Yêu cầu quyền: {', '.join(allowed_roles)}",

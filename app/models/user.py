@@ -1,37 +1,39 @@
-"""
-app/models/user.py
--------------------
-Bảng: roles, users
-"""
+"""SQLAlchemy models for ``roles`` and ``users``."""
 
-from sqlalchemy import Boolean, ForeignKey, String
+from datetime import datetime
+
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base
 
 
 class Role(Base):
-    """Bảng roles: ADMIN, STAFF (nhân viên phục vụ)."""
-
     __tablename__ = "roles"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)  # ADMIN | STAFF
+    role_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    role_name: Mapped[str] = mapped_column(String(30), unique=True, nullable=False)
     description: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     users: Mapped[list["User"]] = relationship(back_populates="role")
 
 
-class User(Base, TimestampMixin):
-    """Bảng users: tài khoản đăng nhập hệ thống quản trị."""
-
+class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    username: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    role_id: Mapped[str] = mapped_column(ForeignKey("roles.role_id"), nullable=False)
+    username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    full_name: Mapped[str] = mapped_column(String(150), nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    full_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    is_active: Mapped[bool | None] = mapped_column(Boolean, default=True, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=True
+    )
 
-    role_id: Mapped[int] = mapped_column(ForeignKey("roles.id"), nullable=False)
     role: Mapped["Role"] = relationship(back_populates="users")
+
+    @property
+    def role_name(self) -> str | None:
+        return self.role.role_name if self.role else None

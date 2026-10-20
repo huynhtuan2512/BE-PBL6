@@ -1,74 +1,58 @@
-"""
-app/schemas/hardware.py
-------------------------
-Schemas dành riêng cho giao tiếp với phần cứng: ESP32-CAM (robot) và Raspberry Pi (AI).
-"""
+"""Schemas for robot and Raspberry Pi endpoints."""
 
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
-# ---------------------------------------------------------------------------
-# ROBOT ROUTING (ESP32 quét QR -> hỏi backend đường đi tiếp theo)
-# ---------------------------------------------------------------------------
 class RobotRoutingQuery(BaseModel):
-    """Query params ESP32 gửi lên khi vừa quét được 1 mã QR tại node hiện tại."""
-    robot_code: str = Field(..., description="Mã định danh robot, VD: ROBOT_01")
-    current_node_code: str = Field(..., description="Mã QR robot vừa quét được")
-    target_table_number: str | None = Field(
-        default=None, description="Bàn đích cần giao món (bắt buộc nếu đây là lượt đi mới)"
-    )
-    direction: str = Field(
-        default="OUTBOUND", description="OUTBOUND: đang đi giao món | INBOUND: đang quay về bếp"
-    )
+    robot_id: str
+    current_qr_id: str
+    target_table_number: int | None = None
+    direction: str = "OUTBOUND"
 
 
 class RouteStep(BaseModel):
-    node_code: str
-    action: str  # STRAIGHT | LEFT | RIGHT | STOP
+    qr_id: str
+    action: str
 
 
 class RobotRoutingResponse(BaseModel):
-    robot_code: str
+    robot_id: str
     direction: str
-    from_node_code: str
-    to_node_code: str
+    from_qr_id: str
+    to_qr_id: str
     total_steps: int
     steps: list[RouteStep]
     is_final_node: bool = False
 
 
-# ---------------------------------------------------------------------------
-# ROBOT STATUS HEARTBEAT
-# ---------------------------------------------------------------------------
 class RobotStatusUpdate(BaseModel):
-    robot_code: str
-    battery_level: float = Field(..., ge=0, le=100)
-    state: str
-    current_node_code: str | None = None
+    id: str
+    robot_state: str
+    current_qr_id: str | None = None
+    obstacle_detected: bool = False
 
 
 class RobotStatusResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    robot_code: str
-    battery_level: float
-    state: str
-    last_heartbeat: datetime | None = None
+    id: str
+    current_qr_id: str | None = None
+    current_order_id: str | None = None
+    robot_state: str
+    obstacle_detected: bool
+    updated_at: datetime | None = None
 
 
-# ---------------------------------------------------------------------------
-# AI DETECTION (Raspberry Pi)
-# ---------------------------------------------------------------------------
 class AIDetectDishRequest(BaseModel):
-    robot_code: str
-    order_id: int
-    detected_labels: list[str] = Field(..., description="Danh sách nhãn món ăn AI nhận diện được qua camera")
+    robot_id: str
+    order_id: str
+    detected_labels: list[str] = Field(..., description="Nhãn món ăn nhận diện được")
 
 
 class AIDetectHumanRequest(BaseModel):
-    robot_code: str
-    node_code: str
+    robot_id: str
+    qr_id: str
     person_detected: bool
     confidence: float = Field(..., ge=0, le=1)

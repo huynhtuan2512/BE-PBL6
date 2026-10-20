@@ -1,42 +1,50 @@
-"""
-app/schemas/order.py
----------------------
-"""
+"""Order schemas matching ``orders`` and ``order_details``."""
+
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
 class OrderItemCreate(BaseModel):
-    dish_id: int
+    dish_id: str = Field(..., min_length=1, max_length=50)
     quantity: int = Field(..., gt=0)
-    note: str | None = None
+    notes: str | None = Field(default=None, max_length=255)
 
 
 class OrderCreate(BaseModel):
-    table_id: int
+    order_id: str | None = Field(default=None, max_length=50)
+    table_id: str = Field(..., min_length=1, max_length=50)
+    created_by_user_id: str | None = Field(default=None, max_length=50)
     items: list[OrderItemCreate] = Field(..., min_length=1)
-    note: str | None = None
 
 
 class OrderDetailResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    dish_id: int
-    quantity: int
-    unit_price: float
-    note: str | None = None
+    detail_id: str
+    order_id: str
+    dish_id: str
+    quantity: int | None = None
+    price_at_time: float
+    notes: str | None = None
+    served_status: bool | None = None
 
 
 class OrderResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    table_id: int
-    status: str
-    total_amount: float
-    order_details: list[OrderDetailResponse] = []
+    order_id: str
+    table_id: str
+    created_by_user_id: str | None = None
+    order_status: str | None = None
+    total_amount: float | None = None
+    order_details: list[OrderDetailResponse] = Field(default_factory=list)
+    created_at: datetime | None = None
 
 
 class OrderStatusUpdate(BaseModel):
-    status: str
+    order_status: str = Field(..., pattern="^(PENDING|PROCESSING|DELIVERING|COMPLETED|CANCELLED)$")
+
+
+class OrderDetailServedUpdate(BaseModel):
+    served_status: bool

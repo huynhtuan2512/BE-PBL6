@@ -1,39 +1,26 @@
-"""
-app/models/node.py
--------------------
-Bảng: nodes
-Mỗi node đại diện cho 1 điểm mốc vật lý trong nhà hàng, được đánh dấu bằng
-1 mã QR dán trên sàn. Robot khi quét được QR sẽ biết mình đang ở node nào.
-"""
+"""SQLAlchemy model for the QR nodes in the restaurant map."""
 
-import enum
+from datetime import datetime
 
-from sqlalchemy import Enum, Float, String
+from sqlalchemy import DateTime, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base
 
 
-class NodeType(str, enum.Enum):
-    KITCHEN = "KITCHEN"        # Điểm xuất phát / bếp
-    TABLE = "TABLE"            # Điểm đặt bàn ăn
-    WAYPOINT = "WAYPOINT"      # Điểm trung gian trên đường đi (giao lộ)
-    CHARGING = "CHARGING"      # Trạm sạc robot
-
-
-class Node(Base, TimestampMixin):
-    """Bảng nodes: các điểm mốc (gắn QR code) trong sơ đồ nhà hàng."""
-
+class Node(Base):
     __tablename__ = "nodes"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    node_code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)  # VD: QR_N01
-    node_type: Mapped[NodeType] = mapped_column(Enum(NodeType), nullable=False, default=NodeType.WAYPOINT)
+    qr_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    node_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    node_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    pos_x: Mapped[int] = mapped_column(Integer, default=0, nullable=True)
+    pos_y: Mapped[int] = mapped_column(Integer, default=0, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=True
+    )
 
-    # Tọa độ tương đối trên sơ đồ 2D của nhà hàng (phục vụ hiển thị bản đồ trên Dashboard)
-    pos_x: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    pos_y: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-
-    description: Mapped[str | None] = mapped_column(String(255), nullable=True)
-
-    table: Mapped["Table"] = relationship(back_populates="node", uselist=False)  # noqa: F821
+    routings: Mapped[list["Routing"]] = relationship(
+        back_populates="node",
+        foreign_keys="Routing.qr_id",
+    )  # noqa: F821
