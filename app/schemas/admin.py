@@ -2,60 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
-
-
-class NodeCreate(BaseModel):
-    qr_id: str
-    node_name: str
-    node_type: str
-    pos_x: int = 0
-    pos_y: int = 0
-
-
-class NodeResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    qr_id: str
-    node_name: str
-    node_type: str
-    pos_x: int
-    pos_y: int
-    created_at: datetime | None = None
-
-
-class NodeUpdate(BaseModel):
-    node_name: str | None = None
-    node_type: str | None = None
-    pos_x: int | None = None
-    pos_y: int | None = None
-
-
-class RoutingCreate(BaseModel):
-    id: str | None = None
-    qr_id: str
-    target_table_id: str | None = None
-    action: str
-    description: str | None = None
-
-
-class RoutingResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: str
-    qr_id: str
-    target_table_id: str | None = None
-    action: str
-    description: str | None = None
-
-
-class RoutingUpdate(RoutingCreate):
-    pass
-
-
-class SwapRoutingTablesRequest(BaseModel):
-    table_a_id: str
-    table_b_id: str
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class UserResponse(BaseModel):
@@ -66,27 +13,66 @@ class UserResponse(BaseModel):
     full_name: str
     phone: str | None = None
     role_id: str
-    is_active: bool
+    is_active: bool | None = None
     role_name: str | None = None
     created_at: datetime | None = None
 
 
+class RoleResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    role_id: str
+    role_name: str
+    description: str | None = None
+
+
 class SwapTableRequest(BaseModel):
-    order_id: str = Field(..., description="Đơn hàng đang cần chuyển sang bàn mới")
-    new_table_id: str = Field(..., description="ID bàn mới khách chuyển tới")
+    order_id: str = Field(..., max_length=50, description="Đơn hàng đang cần chuyển sang bàn mới")
+    new_table_id: str = Field(..., max_length=50, description="ID bàn mới khách chuyển tới")
 
 
 class UserCreate(BaseModel):
-    user_id: str | None = None
-    username: str
+    user_id: str | None = Field(default=None, max_length=50)
+    username: str = Field(..., min_length=1, max_length=50)
     password: str = Field(..., min_length=6)
-    full_name: str
-    phone: str | None = None
-    role_id: str
+    full_name: str = Field(..., min_length=1, max_length=100)
+    phone: str | None = Field(default=None, max_length=20)
+    role_id: str = Field(..., min_length=1, max_length=50)
+
+    @field_validator("username", "full_name", "role_id")
+    @classmethod
+    def strip_required_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Giá trị không được để trống")
+        return value
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_length(cls, value: str) -> str:
+        if len(value.encode("utf-8")) > 72:
+            raise ValueError("Mật khẩu không được vượt quá 72 byte")
+        return value
 
 
 class UserUpdate(BaseModel):
-    full_name: str | None = None
-    phone: str | None = None
+    full_name: str | None = Field(default=None, min_length=1, max_length=100)
+    phone: str | None = Field(default=None, max_length=20)
     is_active: bool | None = None
-    role_id: str | None = None
+    role_id: str | None = Field(default=None, min_length=1, max_length=50)
+    new_password: str | None = Field(default=None, min_length=6)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password_length(cls, value: str | None) -> str | None:
+        if value is not None and len(value.encode("utf-8")) > 72:
+            raise ValueError("Mật khẩu không được vượt quá 72 byte")
+        return value
+
+    @model_validator(mode="after")
+    def reject_null_required_values(self):
+        for field in ("full_name", "role_id"):
+            value = getattr(self, field)
+            if field in self.model_fields_set and (value is None or not value.strip()):
+                raise ValueError(f"{field} không được để trống")
+        return self
