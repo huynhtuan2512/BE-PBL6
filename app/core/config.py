@@ -8,7 +8,7 @@ Tự động đọc biến môi trường từ file .env, có validate kiểu d�
 from functools import lru_cache
 from typing import List
 
-from pydantic import AnyHttpUrl, field_validator
+from pydantic import AliasChoices, AnyHttpUrl, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -28,8 +28,16 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480  # 8 tiếng / ca làm việc
 
     # ---- Static API Key (dành cho ESP32_ROBOT / RASPBERRY_PI) ----
-    # Thiết bị IoT không đăng nhập bằng JWT mà dùng Header "X-Device-Key"
-    DEVICE_API_KEY: str
+    # Thiết bị IoT không đăng nhập bằng JWT mà dùng Header "X-Device-Key".
+    # Dùng chung cho REST (/robot, /hardware) lẫn WebSocket (/ws/robot/{robot_id}).
+    # Vẫn nhận tên biến cũ X_DEVICE_KEY (từ restaurant_robot_api) để không vỡ .env cũ.
+    DEVICE_API_KEY: str = Field(
+        validation_alias=AliasChoices("DEVICE_API_KEY", "X_DEVICE_KEY"),
+    )
+
+    # ---- Robot WebSocket ----
+    ROBOT_MAX_IMAGE_BYTES: int = 8 * 1024 * 1024      # ảnh AI tối đa 8 MB (trước khi base64)
+    ROBOT_COMMAND_FALLBACK_POLL_SECONDS: float = 5.0  # quét lệnh PENDING dự phòng (đa worker / lệnh tạo ngoài process)
 
     # ---- ThingsBoard IoT Platform ----
     THINGSBOARD_HOST: str = "localhost"

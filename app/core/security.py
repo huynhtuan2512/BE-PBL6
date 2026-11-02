@@ -23,7 +23,7 @@ from sqlalchemy.orm import selectinload
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.exceptions import AppException
-
+import secrets
 # ============================================================================
 # 1. PASSWORD HASHING (dùng bcrypt cho tài khoản ADMIN / STAFF)
 # ============================================================================
@@ -116,13 +116,17 @@ def require_roles(*allowed_roles: str):
 # ============================================================================
 # 3. DEVICE API KEY (ESP32_ROBOT / RASPBERRY_PI)
 # ============================================================================
+def is_valid_device_key(provided: str | None) -> bool:
+    """So khớp X-Device-Key constant-time. Dùng chung cho REST và WebSocket."""
+    if not provided or not settings.DEVICE_API_KEY:
+        return False
+    return secrets.compare_digest(
+        provided.encode("utf-8"), settings.DEVICE_API_KEY.encode("utf-8")
+    )
+
+
 async def verify_device_key(x_device_key: str | None = Header(default=None, alias="X-Device-Key")) -> str:
-    """
-    Xác thực thiết bị phần cứng bằng static API Key gửi qua Header `X-Device-Key`.
-    Không dùng JWT vì ESP32/Raspberry Pi cần cơ chế xác thực đơn giản, ít overhead,
-    không cần luồng refresh-token phức tạp.
-    """
-    if x_device_key is None or x_device_key != settings.DEVICE_API_KEY:
+    if not is_valid_device_key(x_device_key):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="X-Device-Key không hợp lệ hoặc bị thiếu",

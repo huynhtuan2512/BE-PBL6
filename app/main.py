@@ -13,12 +13,15 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import engine
 from app.core.exceptions import register_exception_handlers
+from app.core.storage import UPLOADS_DIR
+from app.api.ws.robot import router as robot_ws_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("robot_backend")
@@ -58,7 +61,7 @@ def create_app() -> FastAPI:
     # ---- CORS: cho phép Frontend (Admin Dashboard / App khách hàng) gọi API ----
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.BACKEND_CORS_ORIGINS or ["*"],
+        allow_origins=["*"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -69,6 +72,10 @@ def create_app() -> FastAPI:
 
     # ---- Đăng ký router API v1 ----
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
+    app.include_router(robot_ws_router)
+
+    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
 
     @app.get("/", tags=["Health Check"])
     async def root():

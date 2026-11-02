@@ -12,3 +12,11 @@ from app.models.table import Table, TableStatus
 from app.models.dish import Dish
 from app.models.order import Order, OrderDetail, OrderStatus
 from app.models.robot import RobotStatus, RobotTravelLog, RobotState
+
+from app.models.robot_ws import (  # noqa: F401
+    RobotBestImage,
+    RobotCommand,
+    RobotDeliveryState,
+    RobotDetection,
+    RobotEvent,
+)
