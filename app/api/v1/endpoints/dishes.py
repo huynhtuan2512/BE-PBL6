@@ -4,7 +4,7 @@ app/api/v1/endpoints/dishes.py
 CRUD menu món ăn. STAFF chỉ được xem, ADMIN được tạo/sửa.
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -14,12 +14,24 @@ from app.core.database import get_db
 from app.core.exceptions import AppException
 from app.core.security import require_roles
 from app.models.category import Category
+from app.core.storage import DISH_IMAGES_DIR
 from app.models.dish import Dish
 from app.schemas.common import SuccessResponse
 from app.schemas.dish import DishCreate, DishResponse, DishStatusUpdate, DishUpdate
 
 router = APIRouter(prefix="/dishes", tags=["Dishes - Thực đơn"])
 admin_router = APIRouter(prefix="/admin/dishes", tags=["Admin - Thực đơn"])
+
+MAX_IMAGE_SIZE = 5 * 1024 * 1024
+IMAGE_EXTENSIONS = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
+
+
+def has_valid_image_signature(content: bytes, content_type: str) -> bool:
+    if content_type == "image/jpeg":
+        return content.startswith(b"\xff\xd8\xff")
+    if content_type == "image/png":
+        return content.startswith(b"\x89PNG\r\n\x1a\n")
+    return len(content) >= 12 and content[:4] == b"RIFF" and content[8:12] == b"WEBP"
 
 
 @admin_router.get(
@@ -138,6 +150,52 @@ async def admin_create_dish(payload: DishCreate, db: AsyncSession = Depends(get_
 @admin_router.put("/{dish_id}", response_model=SuccessResponse[DishResponse], dependencies=[Depends(require_roles("ADMIN"))])
 async def admin_update_dish(dish_id: str, payload: DishUpdate, db: AsyncSession = Depends(get_db)):
     return await update_dish(dish_id, payload, db)
+
+
+@admin_router.post("/{dish_id}/image", response_model=SuccessResponse[DishResponse], dependencies=[Depends(require_roles("ADMIN"))])
+async def upload_dish_image(
+    dish_id: str,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+):
+    extension = IMAGE_EXTENSIONS.get(file.content_type or "")
+    if extension is None:
+        raise AppException(415, "Chỉ chấp nhận ảnh JPEG, PNG hoặc WebP")
+
+    content = await file.read(MAX_IMAGE_SIZE + 1)
+    if len(content) > MAX_IMAGE_SIZE:
+        raise AppException(413, "Ảnh không được vượt quá 5 MB")
+    if not has_valid_image_signature(content, file.content_type or ""):
+        raise AppException(415, "Nội dung file không phải ảnh hợp lệ")
+
+    dish = (await db.execute(select(Dish).where(Dish.dish_id == dish_id))).scalar_one_or_none()
+    if dish is None:
+        raise AppException(404, "Không tìm thấy món ăn")
+
+    DISH_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+    filename = f"{uuid4().hex}{extension}"
+    image_path = DISH_IMAGES_DIR / filename
+    image_path.write_bytes(content)
+    previous_image_url = dish.image_url
+    dish.image_url = f"/uploads/dishes/{filename}"
+
+    try:
+        await db.commit()
+        await db.refresh(dish)
+    except Exception:
+        await db.rollback()
+        image_path.unlink(missing_ok=True)
+        raise
+
+    if previous_image_url and previous_image_url.startswith("/uploads/dishes/"):
+        previous_path = DISH_IMAGES_DIR / previous_image_url.rsplit("/", 1)[-1]
+        if previous_path.resolve().parent == DISH_IMAGES_DIR.resolve() and previous_path != image_path:
+            previous_path.unlink(missing_ok=True)
+
+    return SuccessResponse(
+        data=DishResponse.model_validate(dish),
+        message="Tải ảnh món ăn thành công",
+    )
 
 
 @admin_router.patch("/{dish_id}/status", response_model=SuccessResponse[DishResponse], dependencies=[Depends(require_roles("ADMIN"))])
