@@ -118,7 +118,7 @@ async def create_invoice(
                     table_name="orders",
                     description=(
                         f"Đồng bộ đơn {order.order_id} theo hóa đơn {existing.invoice_id}"
-                        + ("; giải phóng bàn " + order.table_id if table_released else "")
+                        + (f"; giải phóng bàn {order.table_id}" if table_released else "")
                     ),
                 )
             )

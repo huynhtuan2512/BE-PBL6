@@ -19,8 +19,8 @@ class TableStatus(str, enum.Enum):
 class Table(Base):
     __tablename__ = "tables"
 
-    table_id: Mapped[str] = mapped_column(String(50), primary_key=True)
-    table_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    table_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    table_number: Mapped[int] = mapped_column(Integer, unique=True, nullable=False)
     capacity: Mapped[int] = mapped_column(Integer, default=4, nullable=True)
     status: Mapped[str | None] = mapped_column(
         String(20), default=TableStatus.EMPTY, nullable=True

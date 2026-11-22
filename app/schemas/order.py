@@ -6,14 +6,14 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class OrderItemCreate(BaseModel):
-    dish_id: str = Field(..., min_length=1, max_length=50)
+    dish_id: int = Field(..., ge=0)
     quantity: int = Field(..., gt=0)
     notes: str | None = Field(default=None, max_length=255)
 
 
 class OrderCreate(BaseModel):
     order_id: str | None = Field(default=None, max_length=50)
-    table_id: str = Field(..., min_length=1, max_length=50)
+    table_id: int
     created_by_user_id: str | None = Field(default=None, max_length=50)
     items: list[OrderItemCreate] = Field(..., min_length=1)
 
@@ -23,7 +23,7 @@ class OrderDetailResponse(BaseModel):
 
     detail_id: str
     order_id: str
-    dish_id: str
+    dish_id: int
     quantity: int | None = None
     price_at_time: float
     notes: str | None = None
@@ -34,7 +34,7 @@ class OrderResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     order_id: str
-    table_id: str
+    table_id: int
     created_by_user_id: str | None = None
     order_status: str | None = None
     total_amount: float | None = None
@@ -43,7 +43,7 @@ class OrderResponse(BaseModel):
 
 
 class OrderStatusUpdate(BaseModel):
-    order_status: str = Field(..., pattern="^(PENDING|PROCESSING|DELIVERING|COMPLETED|CANCELLED)$")
+    order_status: str = Field(..., pattern="^(PENDING|PREPARING|PROCESSING|DELIVERING|COMPLETED|CANCELLED)$")
 
 
 class OrderDetailServedUpdate(BaseModel):

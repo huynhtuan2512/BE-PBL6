@@ -27,6 +27,10 @@ engine: AsyncEngine = create_async_engine(
     pool_size=10,
     max_overflow=20,
     future=True,
+    isolation_level="READ COMMITTED",
+    connect_args={
+        "init_command": "SET SESSION sql_mode=CONCAT(@@sql_mode,',NO_AUTO_VALUE_ON_ZERO')"
+    },
 )
 
 # ---------------------------------------------------------------------------

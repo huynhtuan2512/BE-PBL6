@@ -4,14 +4,22 @@ import enum
 from datetime import datetime
 from decimal import Decimal
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
+if TYPE_CHECKING:
+    from app.models.dish import Dish
+    from app.models.table import Table
+    from app.models.user import User
+
 
 class OrderStatus(str, enum.Enum):
     PENDING = "PENDING"
+    PREPARING = "PREPARING"
     PROCESSING = "PROCESSING"
     DELIVERING = "DELIVERING"
     COMPLETED = "COMPLETED"
@@ -22,7 +30,7 @@ class Order(Base):
     __tablename__ = "orders"
 
     order_id: Mapped[str] = mapped_column(String(50), primary_key=True)
-    table_id: Mapped[str] = mapped_column(
+    table_id: Mapped[int] = mapped_column(
         ForeignKey("tables.table_id"), nullable=False, index=True
     )
     created_by_user_id: Mapped[str | None] = mapped_column(
@@ -50,7 +58,7 @@ class OrderDetail(Base):
     order_id: Mapped[str] = mapped_column(
         ForeignKey("orders.order_id", ondelete="CASCADE"), nullable=False, index=True
     )
-    dish_id: Mapped[str] = mapped_column(
+    dish_id: Mapped[int] = mapped_column(
         ForeignKey("dishes.dish_id"), nullable=False, index=True
     )
     quantity: Mapped[int | None] = mapped_column(Integer, default=1, nullable=True)

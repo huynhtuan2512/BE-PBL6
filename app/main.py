@@ -21,7 +21,6 @@ from app.core.config import settings
 from app.core.database import engine
 from app.core.exceptions import register_exception_handlers
 from app.core.storage import UPLOADS_DIR
-from app.api.ws.robot import router as robot_ws_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("robot_backend")
@@ -54,7 +53,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.PROJECT_NAME,
         version="1.0.0",
-        description="Backend API cho hệ thống Robot Phục Vụ Nhà Hàng Tự Động Điều Hướng Bằng Mã QR",
+        description="Backend API cho hệ thống Robot Phục Vụ Nhà Hàng Tự Động",
         lifespan=lifespan,
     )
 
@@ -72,7 +71,6 @@ def create_app() -> FastAPI:
 
     # ---- Đăng ký router API v1 ----
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
-    app.include_router(robot_ws_router)
 
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
     app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")

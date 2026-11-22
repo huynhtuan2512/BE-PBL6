@@ -63,7 +63,7 @@ async def list_robot_commands(
 
 
 @router.get("/{robot_id}/images/{task_id}")
-async def get_best_image(robot_id: str, task_id: str, db: AsyncSession = Depends(get_db)):
+async def get_best_image(robot_id: str, task_id: int, db: AsyncSession = Depends(get_db)):
     img = (
         await db.execute(
             select(RobotBestImage).where(

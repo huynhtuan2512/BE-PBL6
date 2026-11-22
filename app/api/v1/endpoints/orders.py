@@ -54,7 +54,7 @@ async def list_orders(
         term = f"%{search.strip()}%"
         query = query.join(Table, Table.table_id == Order.table_id).where(
             Order.order_id.ilike(term)
-            | Order.table_id.ilike(term)
+            | cast(Order.table_id, String).ilike(term)
             | cast(Table.table_number, String).ilike(term)
         )
     orders = (await db.execute(query)).scalars().unique().all()
@@ -79,7 +79,7 @@ async def get_order(order_id: str, db: AsyncSession = Depends(get_db)):
 )
 async def get_customer_order(
     order_id: str,
-    table_id: str = Query(..., min_length=1, max_length=50),
+    table_id: int = Query(...),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(

@@ -4,13 +4,12 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 
 class DishCreate(BaseModel):
-    dish_id: str | None = Field(default=None, max_length=50)
+    dish_id: int | None = Field(default=None, ge=0)
     category_id: str = Field(..., min_length=1, max_length=50)
     dish_name: str = Field(..., min_length=1, max_length=100)
     description: str | None = None
     price: float = Field(..., gt=0)
     image_url: str | None = Field(default=None, max_length=255)
-    ai_label_id: str | None = Field(default=None, max_length=50)
     is_available: bool = True
 
     @field_validator("dish_name")
@@ -28,7 +27,6 @@ class DishUpdate(BaseModel):
     description: str | None = None
     price: float | None = Field(default=None, gt=0)
     image_url: str | None = Field(default=None, max_length=255)
-    ai_label_id: str | None = Field(default=None, max_length=50)
     is_available: bool | None = None
 
     @field_validator("dish_name")
@@ -53,11 +51,10 @@ class DishStatusUpdate(BaseModel):
 class DishResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    dish_id: str
+    dish_id: int
     category_id: str
     dish_name: str
     description: str | None = None
     price: float
     image_url: str | None = None
-    ai_label_id: str | None = None
     is_available: bool | None = None

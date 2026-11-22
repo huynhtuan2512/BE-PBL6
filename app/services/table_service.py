@@ -13,7 +13,7 @@ class TableService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def swap_table(self, order_id: str, new_table_id: str) -> Order:
+    async def swap_table(self, order_id: str, new_table_id: int) -> Order:
         async with self.db.begin_nested() if self.db.in_transaction() else self.db.begin():
             order = (
                 await self.db.execute(

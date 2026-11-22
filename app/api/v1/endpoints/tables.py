@@ -27,7 +27,7 @@ public_router = APIRouter(
 class TableResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    table_id: str
+    table_id: int
     table_number: int
     capacity: int | None = None
     status: str | None = None
@@ -51,7 +51,7 @@ async def list_tables(db: AsyncSession = Depends(get_db)):
     response_model=SuccessResponse[TableResponse],
     summary="Lấy trạng thái hiện tại của một bàn",
 )
-async def get_table_status(table_id: str, db: AsyncSession = Depends(get_db)):
+async def get_table_status(table_id: int, db: AsyncSession = Depends(get_db)):
     table = (
         await db.execute(select(Table).where(Table.table_id == table_id))
     ).scalar_one_or_none()
@@ -65,7 +65,7 @@ async def get_table_status(table_id: str, db: AsyncSession = Depends(get_db)):
     response_model=SuccessResponse[TableResponse],
     summary="Tra cứu trạng thái bàn cho giao diện khách hàng",
 )
-async def get_customer_table_status(table_id: str, db: AsyncSession = Depends(get_db)):
+async def get_customer_table_status(table_id: int, db: AsyncSession = Depends(get_db)):
     table = (
         await db.execute(select(Table).where(Table.table_id == table_id))
     ).scalar_one_or_none()

@@ -33,6 +33,15 @@ async def _push_commands(websocket: WebSocket, robot_id: str) -> None:
         await manager.wait_for_wakeup(websocket, settings.ROBOT_COMMAND_FALLBACK_POLL_SECONDS)
 
 
+def _validation_message(exc: ValidationError) -> str:
+    fields = []
+    for error in exc.errors():
+        field = error.get("loc", ("payload",))[-1]
+        if field not in fields:
+            fields.append(str(field))
+    return f"Dữ liệu không hợp lệ: {', '.join(fields)}"
+
+
 @router.websocket("/ws/robot/{robot_id}")
 async def robot_websocket(
     websocket: WebSocket,
@@ -70,7 +79,19 @@ async def robot_websocket(
                         await db.rollback()
                         raise
                 response = {"id": request_id, "ok": True, "data": result}
-            except (json.JSONDecodeError, ValueError, ValidationError) as exc:
+            except ValidationError as exc:
+                response = {
+                    "id": request_id,
+                    "ok": False,
+                    "error": _validation_message(exc),
+                }
+            except json.JSONDecodeError:
+                response = {
+                    "id": request_id,
+                    "ok": False,
+                    "error": "Dữ liệu JSON không hợp lệ",
+                }
+            except ValueError as exc:
                 response = {"id": request_id, "ok": False, "error": str(exc)}
             except (WebSocketDisconnect, RuntimeError):
                 raise

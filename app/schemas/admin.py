@@ -28,7 +28,7 @@ class RoleResponse(BaseModel):
 
 class SwapTableRequest(BaseModel):
     order_id: str = Field(..., max_length=50, description="Đơn hàng đang cần chuyển sang bàn mới")
-    new_table_id: str = Field(..., max_length=50, description="ID bàn mới khách chuyển tới")
+    new_table_id: int = Field(..., description="ID bàn mới khách chuyển tới")
 
 
 class UserCreate(BaseModel):

@@ -40,7 +40,7 @@ class AuditLogResponse(BaseModel):
 class SalesReportRow(BaseModel):
     invoice_id: str
     order_id: str
-    table_id: str
+    table_id: int
     user_id: str | None = None
     staff_name: str | None = None
     total_amount: float

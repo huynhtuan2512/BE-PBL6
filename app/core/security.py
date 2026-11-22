@@ -11,7 +11,7 @@ Xử lý 2 luồng xác thực song song của hệ thống:
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -123,12 +123,3 @@ def is_valid_device_key(provided: str | None) -> bool:
     return secrets.compare_digest(
         provided.encode("utf-8"), settings.DEVICE_API_KEY.encode("utf-8")
     )
-
-
-async def verify_device_key(x_device_key: str | None = Header(default=None, alias="X-Device-Key")) -> str:
-    if not is_valid_device_key(x_device_key):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="X-Device-Key không hợp lệ hoặc bị thiếu",
-        )
-    return x_device_key

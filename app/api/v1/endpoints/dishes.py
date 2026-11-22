@@ -6,6 +6,7 @@ CRUD menu món ăn. STAFF chỉ được xem, ADMIN được tạo/sửa.
 
 from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from uuid import uuid4
@@ -60,7 +61,7 @@ async def list_dishes(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{dish_id}", response_model=SuccessResponse[DishResponse])
-async def get_dish(dish_id: str, db: AsyncSession = Depends(get_db)):
+async def get_dish(dish_id: int, db: AsyncSession = Depends(get_db)):
     dish = (
         await db.execute(
             select(Dish)
@@ -85,12 +86,14 @@ async def create_dish(payload: DishCreate, db: AsyncSession = Depends(get_db)):
     ).scalar_one_or_none()
     if category is None:
         raise AppException(404, "Không tìm thấy danh mục món ăn")
-    dish = Dish(
-        dish_id=values.pop("dish_id") or f"DISH_{uuid4().hex[:12].upper()}",
-        **values,
-    )
+    dish_id = values.pop("dish_id")
+    dish = Dish(**({"dish_id": dish_id} if dish_id is not None else {}), **values)
     db.add(dish)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise AppException(409, "Mã món đã tồn tại") from exc
     await db.refresh(dish)
     return SuccessResponse(data=DishResponse.model_validate(dish), message="Thêm món ăn thành công")
 
@@ -100,7 +103,7 @@ async def create_dish(payload: DishCreate, db: AsyncSession = Depends(get_db)):
     response_model=SuccessResponse[DishResponse],
     dependencies=[Depends(require_roles("ADMIN"))],
 )
-async def update_dish(dish_id: str, payload: DishUpdate, db: AsyncSession = Depends(get_db)):
+async def update_dish(dish_id: int, payload: DishUpdate, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Dish).where(Dish.dish_id == dish_id))
     dish = result.scalar_one_or_none()
     if dish is None:
@@ -132,7 +135,7 @@ async def update_dish(dish_id: str, payload: DishUpdate, db: AsyncSession = Depe
     response_model=SuccessResponse[DishResponse],
     dependencies=[Depends(require_roles("ADMIN"))],
 )
-async def update_dish_status(dish_id: str, payload: DishStatusUpdate, db: AsyncSession = Depends(get_db)):
+async def update_dish_status(dish_id: int, payload: DishStatusUpdate, db: AsyncSession = Depends(get_db)):
     dish = (await db.execute(select(Dish).where(Dish.dish_id == dish_id))).scalar_one_or_none()
     if dish is None:
         raise AppException(404, "Không tìm thấy món ăn")
@@ -148,13 +151,13 @@ async def admin_create_dish(payload: DishCreate, db: AsyncSession = Depends(get_
 
 
 @admin_router.put("/{dish_id}", response_model=SuccessResponse[DishResponse], dependencies=[Depends(require_roles("ADMIN"))])
-async def admin_update_dish(dish_id: str, payload: DishUpdate, db: AsyncSession = Depends(get_db)):
+async def admin_update_dish(dish_id: int, payload: DishUpdate, db: AsyncSession = Depends(get_db)):
     return await update_dish(dish_id, payload, db)
 
 
 @admin_router.post("/{dish_id}/image", response_model=SuccessResponse[DishResponse], dependencies=[Depends(require_roles("ADMIN"))])
 async def upload_dish_image(
-    dish_id: str,
+    dish_id: int,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
 ):
@@ -199,5 +202,5 @@ async def upload_dish_image(
 
 
 @admin_router.patch("/{dish_id}/status", response_model=SuccessResponse[DishResponse], dependencies=[Depends(require_roles("ADMIN"))])
-async def admin_update_dish_status(dish_id: str, payload: DishStatusUpdate, db: AsyncSession = Depends(get_db)):
+async def admin_update_dish_status(dish_id: int, payload: DishStatusUpdate, db: AsyncSession = Depends(get_db)):
     return await update_dish_status(dish_id, payload, db)
