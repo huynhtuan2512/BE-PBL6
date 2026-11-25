@@ -87,8 +87,9 @@ Response khi tìm thấy đơn:
   "data": {
     "ok": true,
     "has_task": true,
-    "table_number": 5,
-    "order_id": "ORDER_001"
+    "task_id": 1,
+    "detail_id": "DTL_001",
+    "table_number": 5
   }
 }
 ```
@@ -101,8 +102,9 @@ Response khi chưa tìm thấy đơn:
   "data": {
     "ok": true,
     "has_task": false,
-    "table_number": null,
-    "order_id": null
+    "task_id": null,
+    "detail_id": null,
+    "table_number": null
   }
 }
 ```
@@ -150,8 +152,9 @@ Có nhiệm vụ:
   "status": "success",
   "data": {
     "has_task": true,
-    "table_number": 5,
-    "order_id": "ORDER_001"
+    "task_id": 1,
+    "detail_id": "DTL_001",
+    "table_number": 5
   }
 }
 ```
@@ -163,8 +166,9 @@ Không có nhiệm vụ:
   "status": "success",
   "data": {
     "has_task": false,
-    "table_number": null,
-    "order_id": null
+    "task_id": null,
+    "detail_id": null,
+    "table_number": null
   }
 }
 ```
@@ -249,11 +253,13 @@ Request body:
 ```json
 {
   "delivery_status": "DELIVERING",
-  "table_number": 5,
-  "order_id": "ORDER_001",
+  "detail_id": "DTL_001",
   "obstacle_detected": false
 }
 ```
+
+Với `WAITING_FOR_DISH`, `DELIVERING` và `DELIVERED`, phải gửi `detail_id` của món được phân công. Server tra cứu đơn hàng và bàn từ chi tiết món trong database. `NOT_DELIVERED` không gắn với một món nên không cần `detail_id`.
+
 Response:
 
 ```json
@@ -262,7 +268,8 @@ Response:
   "data": {
     "ok": true,
     "robot_id": "R01",
-    "status": "DELIVERING"
+    "status": "DELIVERING",
+    "detail_id": "DTL_001"
   }
 }
 ```
@@ -384,7 +391,7 @@ Raspberry nhận diện món
   ↓
 POST /detections
   ↓
-Server trả table_number và order_id
+Server trả `table_number` và `detail_id`
   ↓
 Raspberry điều hướng tới bàn
   ↓

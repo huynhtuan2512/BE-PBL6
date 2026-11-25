@@ -64,8 +64,9 @@ Server -> Raspberry khi tìm thấy đơn:
   "data": {
     "ok": true,
     "has_task": true,
-    "table_number": 5,
-    "order_id": "ORDER_001"
+    "task_id": 1,
+    "detail_id": "DTL_001",
+    "table_number": 5
   }
 }
 ```
@@ -79,8 +80,9 @@ Server -> Raspberry khi không tìm thấy đơn:
   "data": {
     "ok": true,
     "has_task": false,
-    "table_number": null,
-    "order_id": null
+    "task_id": null,
+    "detail_id": null,
+    "table_number": null
   }
 }
 ```
@@ -120,8 +122,9 @@ Có nhiệm vụ:
   "ok": true,
   "data": {
     "has_task": true,
-    "table_number": 5,
-    "order_id": "ORDER_001"
+    "task_id": 1,
+    "detail_id": "DTL_001",
+    "table_number": 5
   }
 }
 ```
@@ -134,8 +137,9 @@ Không có nhiệm vụ:
   "ok": true,
   "data": {
     "has_task": false,
-    "table_number": null,
-    "order_id": null
+    "task_id": null,
+    "detail_id": null,
+    "table_number": null
   }
 }
 ```
@@ -210,12 +214,13 @@ Response:
   "action": "send_status",
   "payload": {
     "delivery_status": "DELIVERING",
-    "table_number": 5,
-    "order_id": "ORDER_001",
+    "detail_id": "DTL_001",
     "obstacle_detected": false
   }
 }
 ```
+
+Mỗi trạng thái gắn với một món phải gửi `detail_id` do server trả về khi phân công task. Không gửi `order_id` hoặc `table_number`; server tra cứu hai giá trị này từ task trong database. `NOT_DELIVERED` dùng cho trạng thái không gắn với món và không cần `detail_id`.
 
 `delivery_status` nhận một trong:
 
@@ -235,7 +240,8 @@ Response:
   "data": {
     "ok": true,
     "robot_id": "R01",
-    "status": "DELIVERING"
+    "status": "DELIVERING",
+    "detail_id": "DTL_001"
   }
 }
 ```

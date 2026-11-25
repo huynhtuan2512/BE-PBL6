@@ -38,14 +38,20 @@ def _dumps(value: object) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
-def delivery_destination(row) -> dict:
-    if row is None:
-        return {"has_task": False, "table_number": None, "order_id": None}
-    if isinstance(row, tuple):
-        table_number, order_id = row
-    else:
-        table_number, order_id = row.table_number, row.order_id
-    return {"has_task": True, "table_number": int(table_number), "order_id": order_id}
+def delivery_destination(task: RobotTask | None) -> dict:
+    if task is None or task.detail_id is None:
+        return {
+            "has_task": False,
+            "task_id": None,
+            "detail_id": None,
+            "table_number": None,
+        }
+    return {
+        "has_task": True,
+        "task_id": task.task_id,
+        "detail_id": task.detail_id,
+        "table_number": int(task.table_number),
+    }
 
 
 async def _dish_exists(db: AsyncSession, dish_id: int) -> bool:
@@ -133,9 +139,7 @@ async def receive_detections(db: AsyncSession, robot_id: str, data: dict) -> dic
     await db.commit()
     return {
         "ok": True,
-        **delivery_destination(
-            (task.table_number, task.order_id) if task.detail_id is not None else None
-        ),
+        **delivery_destination(task if task.detail_id is not None else None),
     }
 
 
@@ -149,7 +153,7 @@ async def get_current_task(db: AsyncSession, robot_id: str, data: dict) -> dict:
         )
     ).scalar_one_or_none()
     if task is not None and task.detail_id is not None and task.task_status != "FAILED":
-        return delivery_destination((task.table_number, task.order_id))
+        return delivery_destination(task)
 
     dish_id = body.dish_id
     if dish_id is None:
@@ -174,7 +178,7 @@ async def get_current_task(db: AsyncSession, robot_id: str, data: dict) -> dict:
         task.dish_id = dish_id
         await _assign(db, task)
         await db.commit()
-    return delivery_destination((task.table_number, task.order_id) if task.detail_id else None)
+    return delivery_destination(task if task.detail_id else None)
 
 
 async def upload_best_image(db: AsyncSession, robot_id: str, data: dict) -> dict:
@@ -241,16 +245,92 @@ async def receive_event(db: AsyncSession, robot_id: str, data: dict) -> dict:
 
 async def receive_status(db: AsyncSession, robot_id: str, data: dict) -> dict:
     body = StatusPayload.model_validate(data)
-    if body.order_id is not None:
-        order_exists = await db.execute(select(exists().where(Order.order_id == body.order_id)))
-        if not order_exists.scalar():
-            raise ValueError("Không tìm thấy đơn hàng")
+    task = None
+    order = None
+    table_number = None
+    order_id = None
+
+    if body.delivery_status == "NOT_DELIVERED":
+        if body.detail_id is not None:
+            raise ValueError("NOT_DELIVERED không nhận detail_id")
+    else:
+        if body.detail_id is None:
+            raise ValueError("Cần detail_id cho trạng thái giao món")
+
+        task = (
+            await db.execute(
+                select(RobotTask)
+                .where(
+                    RobotTask.robot_id == robot_id,
+                    RobotTask.detail_id == body.detail_id,
+                )
+                .with_for_update()
+            )
+        ).scalar_one_or_none()
+        if task is None or task.order_id is None:
+            raise ValueError("Không tìm thấy chi tiết món được gán cho robot")
+
+        detail = (
+            await db.execute(
+                select(OrderDetail)
+                .where(OrderDetail.detail_id == body.detail_id)
+                .with_for_update()
+            )
+        ).scalar_one_or_none()
+        if detail is None or detail.order_id != task.order_id:
+            raise ValueError("Chi tiết món không khớp với task giao hàng")
+
+        order = (
+            await db.execute(
+                select(Order)
+                .where(Order.order_id == detail.order_id)
+                .with_for_update()
+            )
+        ).scalar_one_or_none()
+        if order is None:
+            raise ValueError("Không tìm thấy đơn hàng của chi tiết món")
+        if order.order_id != task.order_id:
+            raise ValueError("Chi tiết món không khớp với task giao hàng")
+
+        if body.delivery_status == "WAITING_FOR_DISH":
+            if task.task_status != "WAITING_FOR_DISH":
+                raise ValueError("Task không ở trạng thái chờ lấy món")
+        elif body.delivery_status == "DELIVERING":
+            if task.task_status not in ("WAITING_FOR_DISH", "DELIVERING"):
+                raise ValueError("Task không thể chuyển sang trạng thái đang giao")
+            task.task_status = "DELIVERING"
+        elif body.delivery_status == "DELIVERED":
+            if task.task_status not in ("WAITING_FOR_DISH", "DELIVERING", "DELIVERED"):
+                raise ValueError("Task không thể chuyển sang trạng thái đã giao")
+            task.task_status = "DELIVERED"
+            detail.served_status = True
+
+            unserved = await db.execute(
+                select(
+                    exists().where(
+                        OrderDetail.order_id == order.order_id,
+                        OrderDetail.served_status.is_not(True),
+                    )
+                )
+            )
+            if (
+                not unserved.scalar()
+                and order.order_status in ("PENDING", "PREPARING", "PROCESSING")
+            ):
+                order.order_status = "DELIVERING"
+
+        order_id = order.order_id
+        table_number = (
+            await db.execute(
+                select(Table.table_number).where(Table.table_id == order.table_id)
+            )
+        ).scalar_one()
 
     stmt = mysql_insert(RobotDeliveryState).values(
         robot_id=robot_id,
         delivery_status=body.delivery_status,
-        table_number=body.table_number,
-        order_id=body.order_id,
+        table_number=table_number,
+        order_id=order_id,
         obstacle_detected=body.obstacle_detected,
         updated_at=func.now(),
     )
@@ -264,42 +344,13 @@ async def receive_status(db: AsyncSession, robot_id: str, data: dict) -> dict:
         )
     )
 
-    if body.order_id is not None and body.delivery_status in {"DELIVERING", "DELIVERED"}:
-        task_statuses = ("WAITING_FOR_DISH",) if body.delivery_status == "DELIVERING" else (
-            "WAITING_FOR_DISH", "DELIVERING"
-        )
-        tasks = (
-            await db.execute(
-                select(RobotTask).where(
-                    RobotTask.robot_id == robot_id,
-                    RobotTask.order_id == body.order_id,
-                    RobotTask.task_status.in_(task_statuses),
-                )
-            )
-        ).scalars().all()
-        for task in tasks:
-            task.task_status = body.delivery_status
-            if body.delivery_status == "DELIVERED" and task.detail_id is not None:
-                await db.execute(
-                    update(OrderDetail)
-                    .where(OrderDetail.detail_id == task.detail_id)
-                    .values(served_status=True)
-                )
-        if body.delivery_status == "DELIVERED":
-            order = (
-                await db.execute(select(Order).where(Order.order_id == body.order_id))
-            ).scalar_one()
-            unserved = await db.execute(
-                select(exists().where(
-                    OrderDetail.order_id == body.order_id,
-                    OrderDetail.served_status.is_not(True),
-                ))
-            )
-            if not unserved.scalar() and order.order_status in ("PENDING", "PREPARING", "PROCESSING"):
-                order.order_status = "DELIVERING"
-
     await db.commit()
-    return {"ok": True, "robot_id": robot_id, "status": body.delivery_status}
+    return {
+        "ok": True,
+        "robot_id": robot_id,
+        "status": body.delivery_status,
+        "detail_id": body.detail_id,
+    }
 
 
 async def get_pending_commands(db: AsyncSession, robot_id: str) -> list[dict]:

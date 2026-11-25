@@ -42,6 +42,8 @@ def handle_service_error(exc: ValueError) -> None:
     if message in {
         "Không tìm thấy món",
         "Không tìm thấy đơn hàng",
+        "Không tìm thấy chi tiết món được gán cho robot",
+        "Không tìm thấy đơn hàng của chi tiết món",
         "Không tìm thấy lệnh",
     }:
         raise AppException(status_code=404, message=message)

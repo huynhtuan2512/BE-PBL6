@@ -227,48 +227,105 @@ INSERT INTO tables (table_id, table_number, capacity, status) VALUES
 
 -- 5. Dishes (dish_id = nhãn AI của Raspberry; image_url trỏ tới thư mục uploads/dishes/ của server)
 
+
+
 INSERT INTO dishes
 (dish_id, category_id, dish_name, description, price, image_url, is_available)
 VALUES
 -- Đồ uống
-(0, 'CAT_DRINK', '7up', 'Nước ngọt 7up lon', 15000, '/uploads/dishes/7up.jpg', TRUE),
-(1, 'CAT_DRINK', 'Aquafina', 'Nước suối Aquafina chai 500ml', 10000, '/uploads/dishes/aquafina.jpg', TRUE),
+(0, 'CAT_DRINK', '7up', 'Nước ngọt 7up lon', 15000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612426/7up_00037.jpg', TRUE),
+
+(1, 'CAT_DRINK', 'Aquafina', 'Nước suối Aquafina chai 500ml', 10000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612425/Aquafina_-_Nuoc_Uong_-_Chai_500_00014.jpg', TRUE),
 
 -- Bánh Việt Nam
-(2, 'CAT_VN_BANH', 'Banh cuon', 'Bánh cuốn nhân thịt, chả lụa', 35000, '/uploads/dishes/banh_cuon.jpg', TRUE),
-(3, 'CAT_VN_BANH', 'Banh gio', 'Bánh giò nhân thịt nấm mèo', 25000, '/uploads/dishes/banh_gio.jpg', TRUE),
-(4, 'CAT_VN_BANH', 'Banh khot', 'Bánh khọt tôm, nước mắm chua ngọt', 45000, '/uploads/dishes/banh_khot.jpg', TRUE),
-(5, 'CAT_VN_BANH', 'Banh mi', 'Bánh mì thịt nguội, pate', 20000, '/uploads/dishes/banh_mi.jpg', TRUE),
-(6, 'CAT_VN_BANH', 'Banh pia', 'Bánh pía nhân đậu xanh sầu riêng', 30000, '/uploads/dishes/banh_pia.jpg', TRUE),
-(7, 'CAT_VN_BANH', 'Banh tet', 'Bánh tét nhân đậu thịt', 40000, '/uploads/dishes/banh_tet.jpg', TRUE),
-(8, 'CAT_VN_BANH', 'Banh trang nuong', 'Bánh tráng nướng trứng, hành phi', 25000, '/uploads/dishes/banh_trang_nuong.jpg', TRUE),
-(9, 'CAT_VN_BANH', 'Banh xeo', 'Bánh xèo tôm thịt, rau sống', 50000, '/uploads/dishes/banh_xeo.jpg', TRUE),
+(2, 'CAT_VN_BANH', 'Banh cuon', 'Bánh cuốn nhân thịt, chả lụa', 35000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612429/Banh_cuon_00045.jpg', TRUE),
+
+(3, 'CAT_VN_BANH', 'Banh gio', 'Bánh giò nhân thịt nấm mèo', 25000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612428/Banh_gio_00043.jpg', TRUE),
+
+(4, 'CAT_VN_BANH', 'Banh khot', 'Bánh khọt tôm, nước mắm chua ngọt', 45000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612429/Banh_khot_00006.jpg', TRUE),
+
+(5, 'CAT_VN_BANH', 'Banh mi', 'Bánh mì thịt nguội, pate', 20000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612428/Banh_mi_00012.jpg', TRUE),
+
+(6, 'CAT_VN_BANH', 'Banh pia', 'Bánh pía nhân đậu xanh sầu riêng', 30000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612428/Banh_pia_00015.jpg', TRUE),
+
+(7, 'CAT_VN_BANH', 'Banh tet', 'Bánh tét nhân đậu thịt', 40000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612429/Banh_tet_00001.jpg', TRUE),
+
+(8, 'CAT_VN_BANH', 'Banh trang nuong', 'Bánh tráng nướng trứng, hành phi', 25000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612428/Banh_trang_nuong_00042.jpg', TRUE),
+
+(9, 'CAT_VN_BANH', 'Banh xeo', 'Bánh xèo tôm thịt, rau sống', 50000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612428/Banh_xeo_00051.jpg', TRUE),
 
 -- Món chính Việt Nam
-(10, 'CAT_VN_MAIN', 'Bun dau mam tom', 'Bún đậu mắm tôm, chả cốm, dồi', 55000, '/uploads/dishes/bun_dau_mam_tom.jpg', TRUE),
-(11, 'CAT_VN_MAIN', 'Ca kho to', 'Cá kho tộ ăn kèm cơm', 85000, '/uploads/dishes/ca_kho_to.jpg', TRUE),
-(12, 'CAT_VN_MAIN', 'Chao long', 'Cháo lòng heo, hành phi', 35000, '/uploads/dishes/chao_long.jpg', TRUE),
+(10, 'CAT_VN_MAIN', 'Bun dau mam tom', 'Bún đậu mắm tôm, chả cốm, dồi', 55000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612428/Bun_dau_mam_tom_00054.jpg', TRUE),
 
--- Đồ uống
-(13, 'CAT_DRINK', 'CocaCola', 'Nước ngọt CocaCola lon', 15000, '/uploads/dishes/cocacola.jpg', TRUE),
-(14, 'CAT_VN_MAIN', 'Com tam', 'Cơm tấm sườn bì chả', 50000, '/uploads/dishes/com_tam.jpg', TRUE),
-(15, 'CAT_VN_MAIN', 'Mi quang', 'Mì Quảng tôm thịt, bánh tráng', 45000, '/uploads/dishes/mi_quang.jpg', TRUE),
-(16, 'CAT_DRINK', 'Mirinda', 'Nước ngọt Mirinda lon', 15000, '/uploads/dishes/mirinda.jpg', TRUE),
-(17, 'CAT_DRINK', 'Pepsi', 'Nước ngọt Pepsi lon', 15000, '/uploads/dishes/pepsi.jpg', TRUE),
-(18, 'CAT_DRINK', 'Rockstar', 'Nước tăng lực Rockstar', 20000, '/uploads/dishes/rockstar.jpg', TRUE),
-(19, 'CAT_DRINK', 'Sting red', 'Nước tăng lực Sting đỏ', 15000, '/uploads/dishes/sting_red.jpg', TRUE),
-(20, 'CAT_VN_MAIN', 'Xoi xeo', 'Xôi xéo đậu xanh, hành phi', 25000, '/uploads/dishes/xoi_xeo.jpg', TRUE),
+(11, 'CAT_VN_MAIN', 'Ca kho to', 'Cá kho tộ ăn kèm cơm', 85000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612428/Ca_kho_to_00009.jpg', TRUE),
+
+(12, 'CAT_VN_MAIN', 'Chao long', 'Cháo lòng heo, hành phi', 35000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612428/Chao_long_00012.jpg', TRUE),
+
+-- Đồ uống và món chính
+(13, 'CAT_DRINK', 'CocaCola', 'Nước ngọt CocaCola lon', 15000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612425/CocaCola_00083.jpg', TRUE),
+
+(14, 'CAT_VN_MAIN', 'Com tam', 'Cơm tấm sườn bì chả', 50000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612427/Com_tam_00036.jpg', TRUE),
+
+(15, 'CAT_VN_MAIN', 'Mi quang', 'Mì Quảng tôm thịt, bánh tráng', 45000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612429/Mi_quang_00029.jpg', TRUE),
+
+(16, 'CAT_DRINK', 'Mirinda', 'Nước ngọt Mirinda lon', 15000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612426/Mirinda_00061.jpg', TRUE),
+
+(17, 'CAT_DRINK', 'Pepsi', 'Nước ngọt Pepsi lon', 15000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612426/Pepsi_00036.jpg', TRUE),
+
+(18, 'CAT_DRINK', 'Rockstar', 'Nước tăng lực Rockstar', 20000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612425/Rockstar_00001.jpg', TRUE),
+
+(19, 'CAT_DRINK', 'Sting red', 'Nước tăng lực Sting đỏ', 15000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612425/Sting_red_00049.jpg', TRUE),
+
+(20, 'CAT_VN_MAIN', 'Xoi xeo', 'Xôi xéo đậu xanh, hành phi', 25000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612427/Xoi_xeo_00027.jpg', TRUE),
 
 -- Món Âu - Mỹ
-(22, 'CAT_WESTERN', 'french_fries', 'Khoai tây chiên', 40000, '/uploads/dishes/french_fries.jpg', TRUE),
-(23, 'CAT_WESTERN', 'hamburger', 'Hamburger bò phô mai', 75000, '/uploads/dishes/hamburger.jpg', TRUE),
-(24, 'CAT_WESTERN', 'pancakes', 'Bánh pancake mật ong', 60000, '/uploads/dishes/pancakes.jpg', TRUE),
-(25, 'CAT_WESTERN', 'pizza', 'Pizza phô mai', 120000, '/uploads/dishes/pizza.jpg', TRUE),
-(26, 'CAT_WESTERN', 'spaghetti_bolognese', 'Mì Ý sốt bò bằm', 90000, '/uploads/dishes/spaghetti_bolognese.jpg', TRUE),
-(27, 'CAT_WESTERN', 'steak', 'Bò bít tết', 180000, '/uploads/dishes/steak.jpg', TRUE),
-(28, 'CAT_WESTERN', 'sushi', 'Sushi cá hồi', 110000, '/uploads/dishes/sushi.jpg', TRUE),
-(29, 'CAT_WESTERN', 'tiramisu', 'Bánh tiramisu', 65000, '/uploads/dishes/tiramisu.jpg', TRUE),
-(30, 'CAT_WESTERN', 'waffles', 'Bánh waffle trái cây', 65000, '/uploads/dishes/waffles.jpg', TRUE);
+(22, 'CAT_WESTERN', 'french_fries', 'Khoai tây chiên', 40000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612426/french_fries_00006.jpg', TRUE),
+
+(23, 'CAT_WESTERN', 'hamburger', 'Hamburger bò phô mai', 75000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612427/hamburger_00007.jpg', TRUE),
+
+(24, 'CAT_WESTERN', 'pancakes', 'Bánh pancake mật ong', 60000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612425/pancakes_00078.jpg', TRUE),
+
+(25, 'CAT_WESTERN', 'pizza', 'Pizza phô mai', 120000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612428/pizza_00036.jpg', TRUE),
+
+(26, 'CAT_WESTERN', 'spaghetti_bolognese', 'Mì Ý sốt bò bằm', 90000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612426/spaghetti_bolognese_00001.jpg', TRUE),
+
+(27, 'CAT_WESTERN', 'steak', 'Bò bít tết', 180000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612426/steak_00088.jpg', TRUE),
+
+(28, 'CAT_WESTERN', 'sushi', 'Sushi cá hồi', 110000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612427/sushi_00044.jpg', TRUE),
+
+(29, 'CAT_WESTERN', 'tiramisu', 'Bánh tiramisu', 65000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612426/tiramisu_0229.jpg', TRUE),
+
+(30, 'CAT_WESTERN', 'waffles', 'Bánh waffle trái cây', 65000,
+'https://res.cloudinary.com/qxkcui4a/image/upload/v1795612425/waffles_00062.jpg', TRUE);
 
 -- 6. Orders (ORDER_001 và ORDER_002 cùng có Banh khot -> dish_id 7 sẽ ra ORDER_001 trước)
 INSERT INTO orders (order_id, table_id, created_by_user_id, total_amount, order_status, created_at) VALUES
