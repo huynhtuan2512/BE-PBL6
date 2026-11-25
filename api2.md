@@ -145,6 +145,8 @@ Schema:
 - `task_id`: integer, lớn hơn hoặc bằng `0`.
 - `dish_id`: integer, tùy chọn, lớn hơn hoặc bằng `0`.
 
+`task_id` phải là ID mới cho mỗi chuyến giao/thử giao. Sau khi task đã `DELIVERED` hoặc `FAILED`, gửi lại cùng `task_id` sẽ bị từ chối; dùng ID mới khi thử lại để tránh nhận task cũ. Mỗi phần ăn được lưu thành một dòng `OrderDetail` riêng với `quantity: 1`.
+
 Có nhiệm vụ:
 
 ```json
@@ -258,7 +260,7 @@ Request body:
 }
 ```
 
-Với `WAITING_FOR_DISH`, `DELIVERING` và `DELIVERED`, phải gửi `detail_id` của món được phân công. Server tra cứu đơn hàng và bàn từ chi tiết món trong database. `NOT_DELIVERED` không gắn với một món nên không cần `detail_id`.
+Với `WAITING_FOR_DISH`, `DELIVERING` và `DELIVERED`, phải gửi `detail_id` của món được phân công. Khi báo một món giao thất bại, gửi `NOT_DELIVERED` kèm `detail_id`; server giải phóng đúng task để món có thể được phân công lại. `NOT_DELIVERED` không có `detail_id` chỉ dùng để cập nhật trạng thái tổng thể/nhàn rỗi của robot. Server tra cứu đơn hàng và bàn từ chi tiết món trong database.
 
 Response:
 

@@ -53,17 +53,18 @@ class OrderService:
                 )
 
             total += dish.price * item.quantity
-            self.db.add(
-                OrderDetail(
-                    detail_id=_new_id("DTL"),
-                    order_id=order.order_id,
-                    dish_id=dish.dish_id,
-                    quantity=item.quantity,
-                    price_at_time=dish.price,
-                    notes=item.notes,
-                    served_status=False,
+            for _ in range(item.quantity):
+                self.db.add(
+                    OrderDetail(
+                        detail_id=_new_id("DTL"),
+                        order_id=order.order_id,
+                        dish_id=dish.dish_id,
+                        quantity=1,
+                        price_at_time=dish.price,
+                        notes=item.notes,
+                        served_status=False,
+                    )
                 )
-            )
 
         order.total_amount = total
         table.status = TableStatus.OCCUPIED

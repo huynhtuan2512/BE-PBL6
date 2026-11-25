@@ -55,6 +55,8 @@ Raspberry -> Server:
 }
 ```
 
+`task_id` phải là ID mới cho mỗi chuyến giao/thử giao. Sau khi task đã `DELIVERED` hoặc `FAILED`, gửi lại cùng `task_id` sẽ bị từ chối; dùng ID mới khi thử lại để tránh nhận task cũ. Mỗi phần ăn được lưu thành một dòng `OrderDetail` riêng với `quantity: 1`.
+
 Server -> Raspberry khi tìm thấy đơn:
 
 ```json
@@ -220,7 +222,7 @@ Response:
 }
 ```
 
-Mỗi trạng thái gắn với một món phải gửi `detail_id` do server trả về khi phân công task. Không gửi `order_id` hoặc `table_number`; server tra cứu hai giá trị này từ task trong database. `NOT_DELIVERED` dùng cho trạng thái không gắn với món và không cần `detail_id`.
+Với `WAITING_FOR_DISH`, `DELIVERING` và `DELIVERED`, phải gửi `detail_id` do server trả về khi phân công task. Khi báo một món giao thất bại, gửi `NOT_DELIVERED` kèm `detail_id`; server giải phóng đúng task để món có thể được phân công lại. `NOT_DELIVERED` không có `detail_id` chỉ dùng để cập nhật trạng thái tổng thể/nhàn rỗi của robot. Không gửi `order_id` hoặc `table_number`; server tra cứu các giá trị này từ database.
 
 `delivery_status` nhận một trong:
 

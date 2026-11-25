@@ -38,6 +38,27 @@ def _dumps(value: object) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
+async def _split_order_detail_units(db: AsyncSession, detail: OrderDetail) -> None:
+    quantity = detail.quantity or 1
+    if quantity <= 1:
+        return
+
+    detail.quantity = 1
+    detail.served_status = False
+    for _ in range(quantity - 1):
+        db.add(
+            OrderDetail(
+                detail_id=f"DTL_{uuid.uuid4().hex[:12].upper()}",
+                order_id=detail.order_id,
+                dish_id=detail.dish_id,
+                quantity=1,
+                price_at_time=detail.price_at_time,
+                notes=detail.notes,
+                served_status=False,
+            )
+        )
+
+
 def delivery_destination(task: RobotTask | None) -> dict:
     if task is None or task.detail_id is None:
         return {
@@ -61,12 +82,12 @@ async def _dish_exists(db: AsyncSession, dish_id: int) -> bool:
 async def _candidate_for_dish(db: AsyncSession, dish_id: int):
     task_for_detail = exists().where(RobotTask.detail_id == OrderDetail.detail_id)
     result = await db.execute(
-        select(OrderDetail.detail_id, Order.order_id, Table.table_number)
+        select(OrderDetail, Table.table_number)
         .join(Order, Order.order_id == OrderDetail.order_id)
         .join(Table, Table.table_id == Order.table_id)
         .where(
             OrderDetail.dish_id == dish_id,
-            OrderDetail.served_status.is_(False),
+            OrderDetail.served_status.is_not(True),
             Order.order_status.in_(ACTIVE_ORDER_STATUSES),
             ~task_for_detail,
         )
@@ -74,7 +95,8 @@ async def _candidate_for_dish(db: AsyncSession, dish_id: int):
         .with_for_update()
         .limit(1)
     )
-    return result.first()
+    row = result.first()
+    return (row[0], row[1]) if row is not None else None
 
 
 async def _assign(db: AsyncSession, task: RobotTask) -> None:
@@ -86,9 +108,11 @@ async def _assign(db: AsyncSession, task: RobotTask) -> None:
             return
         try:
             async with db.begin_nested():
-                task.detail_id = candidate.detail_id
-                task.order_id = candidate.order_id
-                task.table_number = candidate.table_number
+                detail, table_number = candidate
+                await _split_order_detail_units(db, detail)
+                task.detail_id = detail.detail_id
+                task.order_id = detail.order_id
+                task.table_number = table_number
                 task.task_status = "WAITING_FOR_DISH"
                 await db.flush()
             return
@@ -119,6 +143,10 @@ async def receive_detections(db: AsyncSession, robot_id: str, data: dict) -> dic
     if not await _dish_exists(db, body.dish_id):
         raise ValueError("Không tìm thấy món")
 
+    task = await _get_or_create_task(db, robot_id, body.task_id, body.dish_id)
+    if task.task_status in ("DELIVERED", "FAILED"):
+        raise ValueError("Task đã kết thúc; dùng task_id mới cho chuyến giao tiếp theo")
+
     db.add(
         RobotDetection(
             detection_id=str(uuid.uuid4()),
@@ -127,7 +155,6 @@ async def receive_detections(db: AsyncSession, robot_id: str, data: dict) -> dic
             dish_id=body.dish_id,
         )
     )
-    task = await _get_or_create_task(db, robot_id, body.task_id, body.dish_id)
     if task.dish_id != body.dish_id and task.task_status == "WAITING_FOR_DISH":
         task.dish_id = body.dish_id
         task.detail_id = None
@@ -152,6 +179,8 @@ async def get_current_task(db: AsyncSession, robot_id: str, data: dict) -> dict:
             )
         )
     ).scalar_one_or_none()
+    if task is not None and task.task_status in ("DELIVERED", "FAILED"):
+        raise ValueError("Task đã kết thúc; dùng task_id mới cho chuyến giao tiếp theo")
     if task is not None and task.detail_id is not None and task.task_status != "FAILED":
         return delivery_destination(task)
 
@@ -252,7 +281,52 @@ async def receive_status(db: AsyncSession, robot_id: str, data: dict) -> dict:
 
     if body.delivery_status == "NOT_DELIVERED":
         if body.detail_id is not None:
-            raise ValueError("NOT_DELIVERED không nhận detail_id")
+            task = (
+                await db.execute(
+                    select(RobotTask)
+                    .where(
+                        RobotTask.robot_id == robot_id,
+                        RobotTask.detail_id == body.detail_id,
+                    )
+                    .with_for_update()
+                )
+            ).scalar_one_or_none()
+            if task is None or task.order_id is None:
+                raise ValueError("Không tìm thấy chi tiết món được gán cho robot")
+            if task.task_status not in ("WAITING_FOR_DISH", "DELIVERING"):
+                raise ValueError("Task không thể chuyển sang trạng thái chưa giao")
+
+            detail = (
+                await db.execute(
+                    select(OrderDetail)
+                    .where(OrderDetail.detail_id == body.detail_id)
+                    .with_for_update()
+                )
+            ).scalar_one_or_none()
+            if detail is None or detail.order_id != task.order_id:
+                raise ValueError("Chi tiết món không khớp với task giao hàng")
+            if detail.served_status is True:
+                raise ValueError("Món đã được phục vụ, không thể báo chưa giao")
+
+            order = (
+                await db.execute(
+                    select(Order)
+                    .where(Order.order_id == detail.order_id)
+                    .with_for_update()
+                )
+            ).scalar_one_or_none()
+            if order is None or order.order_id != task.order_id:
+                raise ValueError("Không tìm thấy đơn hàng của chi tiết món")
+
+            await _split_order_detail_units(db, detail)
+            task.task_status = "FAILED"
+            task.detail_id = None
+            order_id = order.order_id
+            table_number = (
+                await db.execute(
+                    select(Table.table_number).where(Table.table_id == order.table_id)
+                )
+            ).scalar_one()
     else:
         if body.detail_id is None:
             raise ValueError("Cần detail_id cho trạng thái giao món")
@@ -302,6 +376,7 @@ async def receive_status(db: AsyncSession, robot_id: str, data: dict) -> dict:
         elif body.delivery_status == "DELIVERED":
             if task.task_status not in ("WAITING_FOR_DISH", "DELIVERING", "DELIVERED"):
                 raise ValueError("Task không thể chuyển sang trạng thái đã giao")
+            await _split_order_detail_units(db, detail)
             task.task_status = "DELIVERED"
             detail.served_status = True
 
