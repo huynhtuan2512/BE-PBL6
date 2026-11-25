@@ -6,11 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.exceptions import AppException
 from app.core.security import require_roles
-from app.models.robot_ws import RobotBestImage, RobotCommand, RobotDeliveryState
+from app.models.robot_ws import RobotBestImage, RobotCommand, RobotDeliveryState, RobotTask
 from app.schemas.common import SuccessResponse
 from app.schemas.robot_ws import (
     RobotCommandCreate, RobotCommandCreated,
-    RobotCommandResponse, RobotDeliveryStateResponse,
+    RobotCommandResponse, RobotDeliveryStateResponse, RobotTaskStatusResponse,
 )
 from app.services import robot_ws_service as svc
 from app.ws.manager import manager
@@ -25,11 +25,23 @@ router = APIRouter(
 @router.get("", response_model=SuccessResponse[list[RobotDeliveryStateResponse]])
 async def list_robots(db: AsyncSession = Depends(get_db)):
     rows = (await db.execute(select(RobotDeliveryState).order_by(RobotDeliveryState.robot_id))).scalars().all()
+    tasks = (
+        await db.execute(
+            select(RobotTask).order_by(RobotTask.updated_at.desc(), RobotTask.task_id.desc())
+        )
+    ).scalars().all()
+    tasks_by_robot: dict[str, list[RobotTaskStatusResponse]] = {}
+    for task in tasks:
+        tasks_by_robot.setdefault(task.robot_id, []).append(
+            RobotTaskStatusResponse.model_validate(task)
+        )
+
     online = manager.online_robot_ids()
     data = []
     for r in rows:
         item = RobotDeliveryStateResponse.model_validate(r)
         item.online = r.robot_id in online
+        item.tasks = tasks_by_robot.get(r.robot_id, [])
         data.append(item)
     return SuccessResponse(data=data)
 

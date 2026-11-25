@@ -295,7 +295,7 @@ async def receive_status(db: AsyncSession, robot_id: str, data: dict) -> dict:
                     OrderDetail.served_status.is_not(True),
                 ))
             )
-            if not unserved.scalar() and order.order_status in ("PROCESSING", "PREPARING"):
+            if not unserved.scalar() and order.order_status in ("PENDING", "PREPARING", "PROCESSING"):
                 order.order_status = "DELIVERING"
 
     await db.commit()

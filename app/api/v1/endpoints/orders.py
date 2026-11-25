@@ -73,6 +73,30 @@ async def get_order(order_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @public_router.get(
+    "",
+    response_model=SuccessResponse[list[OrderResponse]],
+    summary="Lấy các đơn đang hoạt động tại bàn cho giao diện khách hàng",
+)
+async def get_customer_active_orders(
+    table_id: int = Query(...),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Order)
+        .options(selectinload(Order.order_details))
+        .where(
+            Order.table_id == table_id,
+            Order.order_status.notin_((OrderStatus.COMPLETED, OrderStatus.CANCELLED)),
+        )
+        .order_by(Order.created_at.desc(), Order.order_id.desc())
+    )
+    orders = result.scalars().unique().all()
+    return SuccessResponse(
+        data=[OrderResponse.model_validate(order) for order in orders]
+    )
+
+
+@public_router.get(
     "/{order_id}",
     response_model=SuccessResponse[OrderResponse],
     summary="Tra cứu đơn hàng theo mã đơn và mã bàn",

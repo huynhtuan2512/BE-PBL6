@@ -55,6 +55,17 @@ class RobotCommandCreated(BaseModel):
     delivered_live: bool
 
 
+class RobotTaskStatusResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    task_id: int
+    dish_id: int | None = None
+    detail_id: str | None = None
+    order_id: str | None = None
+    table_number: int | None = None
+    task_status: str | None = None
+
+
 class RobotDeliveryStateResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -65,6 +76,7 @@ class RobotDeliveryStateResponse(BaseModel):
     obstacle_detected: bool
     updated_at: datetime | None = None
     online: bool = False
+    tasks: list[RobotTaskStatusResponse] = Field(default_factory=list)
 
 
 class RobotCommandResponse(BaseModel):
